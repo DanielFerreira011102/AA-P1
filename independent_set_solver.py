@@ -17,8 +17,9 @@ matplotlib.use('TkAgg')
 
 
 class Algorithm(MultipleValueEnum):
-    BRUTE_FORCE = "Brute Force", "BruteForce", "brute_force", "bf", "BF"
-    GREEDY = "Greedy", "greedy", "GR", "gr"
+    BRUTE_FORCE = "brute_force", "Brute Force", "BruteForce", "bf", "BF", "exhaustive_search", "Exhaustive Search", "ExhaustiveSearch", "es", "ES"
+    GREEDY_V1 = "greedy_v1", "Greedy V1", "GreedyV1", "gv1", "GV1", "greedy_heuristics_v1", "Greedy Heuristics V1", "GreedyHeuristicsV1", "ghv1", "GHV1"
+    GREEDY_V2 = "greedy_v2", "Greedy V2", "GreedyV2", "gv2", "GV2", "greedy_heuristics_v2", "Greedy Heuristics V2", "GreedyHeuristicsV2", "ghv2", "GHV2"
 
 def timeit(func):
     def wrapper(*args, **kwargs):
@@ -44,42 +45,27 @@ class Solution:
 
     def visualize(self):
         # create figure
-        fig = plt.figure(figsize=(10, 5))
+        plt.figure(figsize=(10, 5))
         delta = 10
         limit = (0 - delta, 100 + delta)
-        fig.suptitle(
-            f"""
-        For {self.graph}
-        Independent set for k={self.k} using {self.algorithm.value} = {self.result}
-        """, fontsize=16)
 
-        ax1 = fig.add_subplot(1, 2, 1)
-        self._draw_graph(self.graph, ax1)
-        ax1.axis('on')
-        ax1.set_title("Graph")
-        ax1.grid(True)
-        ax1.set_xlim(*limit)
-        ax1.set_ylim(*limit)
-        ax1.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+        plt.title(f"Independent set for k={self.k} using {self.algorithm.value} = {self.result}")
 
-        ax2 = fig.add_subplot(1, 2, 2)
-        subgraph = self.graph.subgraph(self.solution if self.solution else set())
-        self._draw_graph(subgraph, ax2)
-        ax2.axis('on')
-        ax2.set_title("Independent set")
-        ax2.grid(True)
-        ax2.set_xlim(*limit)
-        ax2.set_ylim(*limit)
-        ax2.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+        self._draw_graph()
+        plt.axis('on')
+        plt.grid(True)
+        plt.xlim(*limit)
+        plt.ylim(*limit)
+        plt.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
 
         plt.tight_layout()
         plt.show()
 
-    def _draw_graph(self, graph: Graph, ax: plt.Axes):
-        pos = {node: node for node in graph.nodes()}
+    def _draw_graph(self):
+        pos = {node: node for node in self.graph.nodes()}
 
-        nx.draw(graph, pos=pos, node_size=300, node_color='lightblue', ax=ax, width=2)
-        nx.draw_networkx_labels(graph, pos=pos, font_size=10)
+        nx.draw(self.graph, pos=pos, node_size=300, node_color=["tab:red" if self.solution and n in self.solution else "tab:blue" for n in self.graph], width=2)
+        nx.draw_networkx_labels(self.graph, pos=pos, font_size=10)
 
     def __bool__(self):
         return self.result
@@ -137,27 +123,9 @@ class SolutionSet:
                         f"{':'.join([str(item) for item in solution.solution]) if solution.result else -1}," +
                         f"{solution.elapsed_time}\n")
 
-    def get_by_elasped_time(self, condition_func: Callable):
-        filtered_records = filter(lambda solution: condition_func(solution.elapsed_time), self.solutions)
-        return list(filtered_records)
-
-    def get_solutions(self, graph: Graph = None, algorithm: Algorithm = None, independent_k: int = None,
-                      k: float = None, result: bool = None):
-        filtered_solutions = []
-        for solution in self.solutions:
-            if graph is not None and solution.graph != graph:
-                continue
-            if independent_k is not None and solution.independent_k != independent_k:
-                continue
-            if k is not None and solution.k != k:
-                continue
-            if algorithm is not None and solution.algorithm != algorithm:
-                continue
-            if result is not None and solution.result != result:
-                continue
-            filtered_solutions.append(solution)
-        return filtered_solutions
-
+    def filter(self, condition_func: Callable, as_list: bool = False):
+        filtered_records = filter(condition_func, self.solutions)
+        return list(filtered_records) if as_list else filtered_records
 
 class IndependentSetSolver:
 
@@ -174,8 +142,10 @@ class IndependentSetSolver:
             k = (k,)
 
         match algorithm:
-            case Algorithm.GREEDY:
-                func = self._solve_greedy_heuristics
+            case Algorithm.GREEDY_V1:
+                func = self._solve_greedy_heuristics_v1
+            case Algorithm.GREEDY_V2:
+                func = self._solve_greedy_heuristics_v2
             case Algorithm.BRUTE_FORCE | _:
                 func = self._solve_brute_force
 
@@ -224,16 +194,26 @@ class IndependentSetSolver:
         return None
 
     @timeit
-    def _solve_greedy_heuristics(self, graph: Graph, k: int):
+    def _solve_greedy_heuristics_v1(self, graph: Graph, k: int):
         mis = set()
         while graph.number_of_nodes() > 0:
+            if len(mis) == k:
+                return mis
+            node = min(graph.nodes(), key=lambda x: graph.degree(x))
+            mis.add(node)
+            graph.remove_nodes_from(list(graph.neighbors(node)))
+            graph.remove_node(node)
+
+    @timeit
+    def _solve_greedy_heuristics_v2(self, graph: Graph, k: int):
+        mis = set()
+        while graph.number_of_nodes() > 0:
+            if len(mis) == k:
+                return mis
             node = graph.pick_best_vertex()
             mis.add(node)
             graph.remove_nodes_from(list(graph.neighbors(node)))
             graph.remove_node(node)
-            if len(mis) == k:
-                return mis
-
         return None
 
     def _get_k_percentage_nodes(self, graph: Graph, k: float):
@@ -242,7 +222,7 @@ class IndependentSetSolver:
 
 def main():
     student_number = 102885
-    num_vertices = tuple(range(4, 50))
+    num_vertices = (4, 5, 6)
     edge_percentages = (0.125, 0.25, 0.5, 0.75)
 
     generator = GraphGenerator(student_number, num_vertices, edge_percentages)
@@ -253,7 +233,10 @@ def main():
 
     solutions = solver.solve(generator.output_graphs, Algorithm.BRUTE_FORCE, save=True, visualize=True)
 
-    quick_solutions = solutions.get_by_elasped_time(lambda elapsed_time: elapsed_time < 0.00001)
+    quick_solutions = solutions.filter(lambda x: x.elapsed_time < 0.00001)
+    print("Quick solutions:")
+    for solution in quick_solutions:
+        print(solution)
 
 
 if __name__ == "__main__":
