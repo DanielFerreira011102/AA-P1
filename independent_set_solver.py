@@ -134,7 +134,7 @@ class IndependentSetSolver:
 
     def solve(self, graphs: Union[Graph, List[Graph]], algorithm: Algorithm = Algorithm.BRUTE_FORCE,
               k: Union[Tuple[float, ...], float] = None, visualize: bool = False, save: bool = False,
-              directory: str = 'output', filename: str = 'results2.csv'):
+              directory: str = 'output', filename: str = 'results.csv'):
         if k is None:
             k = self.k
 
@@ -234,6 +234,7 @@ def main():
     solutions = solver.solve(generator.output_graphs, Algorithm.BRUTE_FORCE, save=True, visualize=True)
 
     quick_solutions = solutions.filter(lambda x: x.elapsed_time < 0.00001)
+
     print("Quick solutions:")
     for solution in quick_solutions:
         print(solution)
