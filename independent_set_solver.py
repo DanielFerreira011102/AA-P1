@@ -9,7 +9,7 @@ from graph_generator import GraphGenerator, Graph
 from loggingdf import Logger, LogLevel
 from multiple_value_enum import MultipleValueEnum
 
-logger = Logger(level=LogLevel.DEBUG)
+logger = Logger(level=LogLevel.DEBUG,)
 
 matplotlib.use('TkAgg')
 
@@ -57,6 +57,25 @@ class Solution:
         self.k = k
         self.independent_k = independent_k
         self.result = result
+
+    def validate(self):
+        if self.solution is None:
+            return True
+
+        if len(self.solution) != self.independent_k:
+            print(f"Number of nodes in solution ({len(self.solution)}) does not match independent_k ({self.independent_k})")
+            return False
+
+        for node in self.solution:
+            if node not in self.graph.nodes():
+                print(f"Node {node} is not in the graph")
+                return False
+            for neighbor in self.graph.neighbors(node):
+                if neighbor in self.solution:
+                    print(f"Node {node} and {neighbor} are neighbors")
+                    return False
+        return True
+
 
     def visualize(self):
         plt.figure(figsize=(10, 5))
@@ -300,7 +319,7 @@ def main():
     num_vertices = (4, 5, 6)
     edge_percentages = (0.125, 0.25, 0.5, 0.75)
 
-    graphs = GraphGenerator.load_graphs('graphs')[:4]
+    graphs = GraphGenerator.load_graphs('graphs')
 
     k = (0.125, 0.25, 0.5, 0.75)
     solver = IndependentSetSolver(k)
@@ -311,7 +330,7 @@ def main():
         osSleep = WindowsInhibitor()
         osSleep.inhibit()
 
-    solutions = solver.solve(graphs, Algorithm.CLEVER, save=True)
+    solutions = solver.solve(graphs, Algorithm.CLEVER)
 
     if osSleep:
         osSleep.uninhibit()
