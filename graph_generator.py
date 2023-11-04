@@ -1,3 +1,4 @@
+import ast
 import os.path
 from typing import List, Tuple, Union
 import networkx as nx
@@ -49,8 +50,8 @@ class Graph(nx.Graph):
     def from_nx_graph(G: nx.Graph):
         this = Graph()
         this.graph = G.graph
-        this.add_nodes_from(G.nodes())
-        this.add_edges_from(G.edges())
+        this.add_nodes_from(G.nodes(data=True))
+        this.add_edges_from(G.edges(data=True))
         this.name = G.name
         return this
 
@@ -208,7 +209,14 @@ class GraphGenerator:
         if not file.endswith('.gml'):
             raise ValueError(f"File {file} is not a .gml file")
 
-        G = nx.read_gml(file)
+        def destringize_to_tuple(s):
+            if s.startswith("(") and s.endswith(")"):
+                s = s[1:-1]
+                x, y = map(int, s.split(","))
+                return x, y
+            return s
+
+        G = nx.read_gml(file, destringizer=destringize_to_tuple)
         return Graph.from_nx_graph(G)
 
     @staticmethod
