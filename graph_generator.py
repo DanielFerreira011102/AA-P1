@@ -1,10 +1,11 @@
 import os.path
 from typing import List, Tuple, Union
-
 import networkx as nx
 import matplotlib
 import matplotlib.pyplot as plt
 import random
+import math
+
 from loggingdf import Logger, LogLevel
 
 logger = Logger(level=LogLevel.DEBUG)
@@ -12,15 +13,49 @@ logger = Logger(level=LogLevel.DEBUG)
 matplotlib.use('TkAgg')
 
 
+def generate_max_spread_points(N, x_range, y_range):
+    def euclidean_distance(point1, point2):
+        return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
+
+    points = [(random.randint(x_range[0], x_range[1]), random.randint(y_range[0], y_range[1]))]
+
+    while len(points) < N:
+        max_min_distance = -1
+        best_point = None
+
+        for _ in range(1000):
+            x = random.randint(x_range[0], x_range[1])
+            y = random.randint(y_range[0], y_range[1])
+            min_distance = min(euclidean_distance((x, y), p) for p in points)
+
+            if min_distance > max_min_distance and points not in points:
+                max_min_distance = min_distance
+                best_point = (x, y)
+
+        if best_point is not None:
+            points.append(best_point)
+
+    return points
+
+
 class Graph(nx.Graph):
     def __init__(self, num_vertices: int = None, edge_percentage: float = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.num_vertices = num_vertices
-        self.edge_percentage = edge_percentage
+        self.graph['num_vertices'] = num_vertices
+        self.graph['edge_percentage'] = edge_percentage
         self.name = f"graph_{num_vertices}_{edge_percentage}.gml"
 
+    @staticmethod
+    def from_nx_graph(G: nx.Graph):
+        this = Graph()
+        this.graph = G.graph
+        this.add_nodes_from(G.nodes())
+        this.add_edges_from(G.edges())
+        this.name = G.name
+        return this
+
     def __str__(self):
-        return f"Graph(name={self.name}, nodes={self.number_of_nodes()}, edges={self.number_of_edges()}, edge_percentage={self.edge_percentage})"
+        return f"Graph(name={self.name}, nodes={self.number_of_nodes()}, edges={self.number_of_edges()}, edge_percentage={self.edge_percentage()})"
 
     def __repr__(self):
         return str(self)
@@ -79,6 +114,12 @@ class Graph(nx.Graph):
 
         return sum(self.degree(node) for node in open_nodes)
 
+    def number_of_vertices(self):
+        return self.graph.get('num_vertices', None)
+
+    def edge_percentage(self):
+        return self.graph.get('edge_percentage', None)
+
     def save(self, directory: str = os.getcwd()):
         os.makedirs(directory, exist_ok=True)
         path = os.path.join(directory, self.name)
@@ -86,141 +127,169 @@ class Graph(nx.Graph):
 
 
 class GraphGenerator:
-    def __init__(self, seed: int, num_vertices: Union[Tuple[int, ...], int] = (),
-                 edge_percentages: Union[Tuple[float, ...], float] = (),
-                 output_folder: str = 'out', coordinate_range: Tuple[int, int] = (1, 100)):
-        self.seed = seed
-        self.num_vertices = (num_vertices,) if isinstance(num_vertices, int) else num_vertices
-        self.edge_percentages = (edge_percentages,) if isinstance(edge_percentages, float) else edge_percentages
-        self.coordinate_range = coordinate_range
-        self.output_folder = output_folder
-        self.output_graphs = []
 
-    def generate_graphs(self):
+    @staticmethod
+    def generate_graphs(seed: int = 0, num_vertices: Union[Tuple[int, ...], int] = (),
+                        edge_percentages: Union[Tuple[float, ...], float] = (),
+                        coordinate_range: Tuple[int, int] = (1, 100)):
         logger.info("Generating graphs")
 
-        for num_vertex in self.num_vertices:
-            for edge_percentage in self.edge_percentages:
-                self._generate_random_graph(num_vertex, edge_percentage)
+        if isinstance(num_vertices, int):
+            num_vertices = (num_vertices,)
+        if isinstance(edge_percentages, float):
+            edge_percentages = (edge_percentages,)
 
-        logger.success(f"Generated {len(self.output_graphs)} graphs")
+        return [
+            GraphGenerator.generate_graph(seed, num_vertex, edge_percentage, coordinate_range)
+            for num_vertex in num_vertices for edge_percentage in edge_percentages
+        ]
 
-    def _generate_random_graph(self, n: int, edge_percentage: float):
-        logger.info(f"Generating {n}-vertex graph with {edge_percentage * 100}% edges")
+    @staticmethod
+    def generate_graph(seed: int = 0, num_vertices: int = (), edge_percentage: float = (),
+                       coordinate_range: Union[Tuple[int, int], List[Tuple[int, int]]] = (1, 100)):
+        logger.info(f"Generating {num_vertices}-vertex graph with {edge_percentage * 100}% edges")
 
-        random.seed(self.seed)
-        G = Graph(n, edge_percentage)
+        random.seed(seed)
+        G = Graph(num_vertices, edge_percentage)
 
-        vertices = self._generate_random_coordinates(n)
-        number_of_edges = int(self._generate_maximum_number_of_edges(n) * edge_percentage)
-
-        G.add_edges_from(self._generate_edges(vertices, number_of_edges))
-
+        vertices = GraphGenerator.generate_random_coordinates(num_vertices, coordinate_range)
         G.add_nodes_from(vertices)
 
-        self.output_graphs.append(G)
+        number_of_edges = int(GraphGenerator.generate_maximum_number_of_edges(num_vertices) * edge_percentage)
+        G.add_edges_from(GraphGenerator.generate_edges(vertices, number_of_edges))
 
-        logger.success(f"Generated {n}-vertex graph with {edge_percentage * 100}% edges")
+        return G
 
-    def _generate_independent_set_solution(self, n: int, edge_percentage: float, k: float):
-        pass
+    @staticmethod
+    def visualize_graphs(graphs: List[Graph], grid: bool = False):
+        GraphGenerator.visualize_graph_grid(graphs) if grid else GraphGenerator.visualize_graph_all(graphs)
 
-    def visualize_graphs(self, grid: bool = False):
-        self._visualize_graph_grid() if grid else self._visualize_graph_all()
-
-    def _visualize_graph_all(self):
+    @staticmethod
+    def visualize_graph_all(graphs: List[Graph]):
         logger.info("Visualizing all stored graphs")
 
-        for G in self.output_graphs:
+        for G in graphs:
             G.visualize()
 
-    def _generate_edges(self, vertices: List[Tuple[int, int]], number_of_edges: int, loops: bool = False,
-                        duplicate_edges: bool = False, cycles: bool = True):
+    @staticmethod
+    def generate_edges(vertices: List[Tuple[int, int]], number_of_edges: int, loops: bool = False,
+                       duplicate_edges: bool = False):
         edges = []
 
         while len(edges) < number_of_edges:
-            random_vertex1, random_vertex2 = random.sample(vertices, 2)
+            vertex1, vertex2 = random.sample(vertices, 2)
 
-            if random_vertex1 == random_vertex2 and not loops:
+            if not loops and vertex1 == vertex2:
                 continue
 
-            edge = (random_vertex1, random_vertex2)
+            edge = (vertex1, vertex2)
 
-            if not duplicate_edges and edge in edges:
-                continue
-
-            if not cycles and self._forms_cycle(edges, edge):
+            if not duplicate_edges and (edge in edges or edge[::-1] in edges):
                 continue
 
             edges.append(edge)
 
         return edges
 
-    def _forms_cycle(self, edges: List[Tuple[int, int]], edge: Tuple[int, int]):
-        G = Graph()
-        G.add_edges_from(edges)
-        G.add_edge(*edge)
-        return nx.cycle_basis(G) != []
+    @staticmethod
+    def generate_maximum_number_of_edges(num_vertices: int):
+        return int(num_vertices * (num_vertices - 1) / 2)
 
-    def _generate_maximum_number_of_edges(self, n: int):
-        return int(n * (n - 1) / 2)
+    @staticmethod
+    def load_graphs(path: str):
+        logger.info(f"Loading graphs from {path}")
+        return [GraphGenerator.load_graph(os.path.join(path, filename)) for filename in os.listdir(path) if
+                filename.endswith('.gml')]
 
-    def _generate_random_coordinates(self, n: int):
-        return [(random.randint(*self.coordinate_range), random.randint(*self.coordinate_range)) for _ in range(n)]
+    @staticmethod
+    def load_graph(file: str):
+        if not os.path.isfile(file):
+            raise FileNotFoundError(f"File {file} not found")
+        if not file.endswith('.gml'):
+            raise ValueError(f"File {file} is not a .gml file")
 
-    def save_graphs(self):
+        G = nx.read_gml(file)
+        return Graph.from_nx_graph(G)
+
+    @staticmethod
+    def generate_random_coordinates(num_vertices: int, coordinate_range: Tuple[int, int] = (1, 100),
+                                    coincident: bool = False, spread: bool = True):
+        if isinstance(coordinate_range, tuple):
+            coordinate_range_x = coordinate_range_y = coordinate_range
+        else:
+            coordinate_range_x, coordinate_range_y = coordinate_range
+
+        if spread:
+            return generate_max_spread_points(num_vertices, coordinate_range_x, coordinate_range_y)
+
+        coordinates_array = []
+        while len(coordinates_array) < num_vertices:
+            coordinates = (random.randint(*coordinate_range_x), random.randint(*coordinate_range_y))
+            if not coincident and coordinates in coordinates_array:
+                continue
+            coordinates_array.append(coordinates)
+        return coordinates_array
+
+    @staticmethod
+    def save_graphs(graphs: List[Graph], directory: str = os.getcwd()):
         logger.info("Saving all stored graphs")
 
-        self._create_output_dir()
+        for G in graphs:
+            GraphGenerator.save_graph(G, directory)
 
-        for G in self.output_graphs:
-            self._save_graph_to_file(G)
+    @staticmethod
+    def save_graph(G: Graph, directory: str = os.getcwd()):
+        logger.info(f"Saving {G.number_of_vertices()}-vertex graph with {G.edge_percentage() * 100}% edges")
 
-        logger.success(f"Saved {len(self.output_graphs)} graphs")
+        os.makedirs(directory, exist_ok=True)
 
-    def _save_graph_to_file(self, G: Graph):
-        logger.info(f"Saving {G.num_vertices}-vertex graph with {G.edge_percentage * 100}% edges")
+        G.save(directory)
 
-        G.save(self.output_folder)
-
-        logger.success(
-            f"Saved {G.num_vertices}-vertex graph with {G.edge_percentage * 100}% edges to {self.output_folder} with name {G.name}")
-
-    def _visualize_graph_grid(self):
+    @staticmethod
+    def visualize_graph_grid(graphs: List[Graph], cols: int = 3):
         logger.info("Visualizing graphs in grid")
 
-        num_rows = len(self.num_vertices)
-        num_cols = len(self.edge_percentages)
+        num_cols = cols
+        num_graphs = len(graphs)
+        num_rows = (num_graphs + num_cols - 1) // num_cols
 
-        fig, axes = plt.subplots(num_rows, num_cols, figsize=(15, 10))
+        figsize = (2.5 * num_cols, 7 * num_rows)
 
-        for k, G in enumerate(self.output_graphs):
-            i = k // num_cols
-            j = k % num_cols
-            nx.draw(G, with_labels=True, ax=axes[i, j], node_size=200, node_color='lightblue', font_size=8)
-            axes[i, j].set_title(G.name)
+        fig, axes = plt.subplots(num_rows, num_cols, figsize=figsize)
+
+        limit = (-10, 110)
+
+        for k in range(num_rows * num_cols):
+            if k < num_graphs:
+                i = k // num_cols
+                j = k % num_cols
+
+                axes[i, j].axis('on')
+                axes[i, j].set_title(graphs[k].name)
+                axes[i, j].grid(True)
+
+                pos = {node: node for node in graphs[k].nodes()}
+
+                nx.draw_networkx_nodes(graphs[k], pos, node_color='tab:blue', node_size=100, ax=axes[i, j])
+                nx.draw_networkx_edges(graphs[k], pos, width=1, ax=axes[i, j])
+
+                axes[i, j].set_xlim(*limit)
+                axes[i, j].set_ylim(*limit)
+                axes[i, j].tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+            else:
+                axes.flat[k].axis('off')  # Hide the empty subplots
 
         plt.tight_layout()
+        plt.subplots_adjust(top=0.96, bottom=0.04, hspace=0.4, wspace=0.1)
         plt.show()
-
-    def _create_output_dir(self):
-        os.makedirs(self.output_folder, exist_ok=True)
-
-    def __str__(self):
-        return f"GraphGenerator(seed={self.seed}, num_vertices={self.num_vertices}, edge_percentages={self.edge_percentages}, output_folder={self.output_folder}, coordinate_range={self.coordinate_range})"
-
-    def __repr__(self):
-        return str(self)
 
 
 def main():
     student_number = 102885
-    num_vertices = (20, 50, 100)
+    num_vertices = (4, 5, 6)
     edge_percentages = (0.125, 0.25, 0.5, 0.75)
 
-    generator = GraphGenerator(student_number, num_vertices, edge_percentages)
-    generator.generate_graphs()
-    generator.visualize_graphs()
+    graphs = GraphGenerator.generate_graphs(student_number, num_vertices, edge_percentages)
 
 
 if __name__ == "__main__":
