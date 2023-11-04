@@ -9,7 +9,7 @@ from graph_generator import GraphGenerator, Graph
 from loggingdf import Logger, LogLevel
 from multiple_value_enum import MultipleValueEnum
 
-logger = Logger(level=LogLevel.DEBUG,)
+logger = Logger(level=LogLevel.DEBUG, )
 
 matplotlib.use('TkAgg')
 
@@ -20,7 +20,7 @@ class WindowsInhibitor:
     API documentation:
     https://msdn.microsoft.com/en-us/library/windows/desktop/aa373208(v=vs.85).aspx'''
     ES_CONTINUOUS = 0x80000000
-    ES_SYSTEM_REQUIRED = 0x00000001
+    ES_DISPLAY_REQUIRED = 0x00000002
 
     def __init__(self):
         pass
@@ -30,7 +30,7 @@ class WindowsInhibitor:
         logger.warning("Preventing Windows from going to sleep")
         ctypes.windll.kernel32.SetThreadExecutionState(
             WindowsInhibitor.ES_CONTINUOUS | \
-            WindowsInhibitor.ES_SYSTEM_REQUIRED)
+            WindowsInhibitor.ES_DISPLAY_REQUIRED)
 
     def uninhibit(self):
         import ctypes
@@ -63,7 +63,8 @@ class Solution:
             return True
 
         if len(self.solution) != self.independent_k:
-            print(f"Number of nodes in solution ({len(self.solution)}) does not match independent_k ({self.independent_k})")
+            print(
+                f"Number of nodes in solution ({len(self.solution)}) does not match independent_k ({self.independent_k})")
             return False
 
         for node in self.solution:
@@ -75,7 +76,6 @@ class Solution:
                     print(f"Node {node} and {neighbor} are neighbors")
                     return False
         return True
-
 
     def visualize(self):
         plt.figure(figsize=(10, 5))
@@ -254,7 +254,7 @@ class IndependentSetSolver:
             return False, None
         if v := next((node for node, d in graph.degree() if d <= 1), None):
             result, solution = self._solve_clever(graph.subgraph(set(graph.nodes) - (set(graph.neighbors(v)) | {v})),
-                                                k - 1)
+                                                  k - 1)
             return (result, solution) if not result else (result, solution | {v})
         if v := next((node for node, d in graph.degree() if d >= 3), None):
             result_inc, solution_inc = self._solve_clever(
