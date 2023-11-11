@@ -54,7 +54,7 @@ def visualize_elapsed_default(df, algorithm, out=None):
                     marker='o', color=color)
 
         ax.set_xlabel('Number of Nodes')
-        ax.set_ylabel('Elapsed Time (s)')
+        ax.set_ylabel('Log2(Elapsed Time (s))')
 
         ax.legend(loc='upper left')
 

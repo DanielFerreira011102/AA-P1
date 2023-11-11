@@ -1,5 +1,5 @@
-import ast
 import os.path
+import re
 from typing import List, Tuple, Union
 import networkx as nx
 import matplotlib
@@ -66,6 +66,16 @@ class Graph(nx.Graph):
         plt.title(self.name)
         nx.draw(self, with_labels=True, node_size=200, node_color='lightblue', font_size=8)
         plt.show()
+
+    def removed_node_subgraph(self, node):
+        return self.subgraph(set(self.nodes()) - {node})
+
+    def removed_adjacency_subgraph(self, node):
+        return self.subgraph(set(self.nodes()) - set(self.neighbors(node)) - {node})
+
+    def remove_adjacency(self, node):
+        self.remove_nodes_from(list(self.neighbors(node)))
+        self.remove_node(node)
 
     def pick_best_vertex(self):
         degree = 1
@@ -197,9 +207,17 @@ class GraphGenerator:
         return int(num_vertices * (num_vertices - 1) / 2)
 
     @staticmethod
-    def load_graphs(path: str):
+    def load_graphs(path: str = os.getcwd(), files: List[str] = None):
+        if files is not None:
+            logger.info(f"Loading graphs from files {files}")
+            return [GraphGenerator.load_graph(os.path.join(path, file)) for file in files]
+
         logger.info(f"Loading graphs from {path}")
-        return [GraphGenerator.load_graph(os.path.join(path, filename)) for filename in os.listdir(path) if
+
+        def natural_sort_key(s):
+            return [int(text) if text.isdigit() else text.lower() for text in re.split('(\\d+)', s)]
+
+        return [GraphGenerator.load_graph(os.path.join(path, filename)) for filename in sorted(os.listdir(path), key=natural_sort_key) if
                 filename.endswith('.gml')]
 
     @staticmethod
