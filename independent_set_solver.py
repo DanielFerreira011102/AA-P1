@@ -246,21 +246,29 @@ class IndependentSetSolver:
 
     def _solve_brute_force(self, graph: Graph, k: int):
         if k == 0:
-            return True, set()
+            return True, 1, set()
         if graph.number_of_nodes() == 0:
-            return False, None
+            return False, 1, None
         if k > graph.number_of_nodes():
-            return False, None
+            return False, 1, None
+
         nodes = list(graph.nodes())
+        operations_count = 0
+
         for subset in combinations(nodes, k):
+            operations_count += 1
             is_independent_set = True
             for u, v in combinations(subset, 2):
+                operations_count += 1
                 if graph.has_edge(u, v):
                     is_independent_set = False
+                    operations_count += 1
                     break
+
             if is_independent_set:
-                return True, set(subset)
-        return False, None
+                return True, operations_count, set(subset)
+
+        return False, operations_count, None
 
     def _solve_clever(self, graph: Graph, k: int):
         if k == 0:
@@ -274,7 +282,8 @@ class IndependentSetSolver:
             return (result, solution) if not result else (result, solution | {v})
         if v := next((node for node, d in graph.degree() if d >= 3), None):
             result_inc, solution_inc = self._solve_clever(graph.removed_adjacency_subgraph(v), k - 1)
-            return result_inc, solution_inc | {v} if result_inc else self._solve_clever(graph.removed_node_subgraph(v), k)
+            return result_inc, solution_inc | {v} if result_inc else self._solve_clever(graph.removed_node_subgraph(v),
+                                                                                        k)
         components = list(nx.connected_components(graph))
         if sum(len(c) // 2 for c in components) >= k:
             selected_nodes = set()
@@ -290,20 +299,29 @@ class IndependentSetSolver:
 
     def _solve_greedy_heuristics_v1(self, graph: Graph, k: int):
         if k == 0:
-            return True, set()
+            return True, 1, set()
         if graph.number_of_nodes() == 0:
-            return False, None
+            return False, 1, None
         if k > graph.number_of_nodes():
-            return False, None
+            return False, 1, None
 
         mis = set()
+        operations_count = 0
+
         while graph.number_of_nodes() > 0:
+            operations_count += 1
+
             if len(mis) == k:
-                return True, mis
+                return True, operations_count, mis
+
             node = min(graph.nodes(), key=lambda x: graph.degree(x))
+            operations_count += 1
             mis.add(node)
+            operations_count += graph.number_of_nodes()
+
             graph.remove_adjacency(node)
-        return False, None
+
+        return False, operations_count, None
 
     def _solve_greedy_heuristics_v2(self, graph: Graph, k: int):
         if k == 0:

@@ -1,50 +1,8 @@
+import math
 from itertools import combinations
 
-import networkx as nx
-import random
+from graph_generator import GraphGenerator
 
-from matplotlib import pyplot as plt
-
-from graph_generator import Graph
-from independent_set_solver import IndependentSetSolver, Algorithm
-
-
-
-
-# Example usage:
-N = 10  # Number of vertices
-P = 15  # Number of edges
-k = 4   # Minimum size of the independent set
-graph, solution, ret = generate_graph_with_independent_set(N, P, k)
-
-
-def _solve_brute_force(graph: Graph, k: int):
-    nodes = list(graph.nodes())
-    for subset in combinations(nodes, k):
-        is_independent_set = True
-        for u, v in combinations(subset, 2):
-            if graph.has_edge(u, v):
-                is_independent_set = False
-                break
-        if is_independent_set:
-            return set(subset)
-    return None
-
-if ret:
-    print("Found a valid graph with independent set:")
-    print(f"Graph: {graph}")
-    print(f"Independent set: {solution}")
-    csolution = _solve_brute_force(graph, k)
-    print(f"Solution: {csolution}")
-    plt.figure()
-    nx.draw(
-        graph,
-        pos=nx.spring_layout(graph),
-        with_labels=True,
-        node_color=["tab:red" if n in solution else "tab:blue" for n in graph],
-    )
-    plt.tight_layout()
-    plt.show()
 
 def memoize(func):
     cache = {}
@@ -65,3 +23,20 @@ def memoize(func):
         return degree_sum
 
     return wrapper
+
+
+g = GraphGenerator.load_graph('graphs/graph_79_0.75.gml')
+print(g.number_of_edges())
+
+n = 5
+e = 5
+
+for k in range(5):
+    if e > ((n - k) * (n - k - 1)) / 2 + k:
+        continue
+    print(k)
+
+print("aqui")
+for k in range(5):
+    if e < n - k + 1:
+        print(k)
