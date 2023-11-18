@@ -1,3 +1,4 @@
+import inspect
 import math
 import os
 import seaborn as sns
@@ -13,6 +14,7 @@ results_dir = 'out'
 df_brute_force = pd.read_csv(os.path.join(results_dir, 'results_brute_force.csv'), sep=';')
 df_clever = pd.read_csv(os.path.join(results_dir, 'results_clever.csv'), sep=';')
 df_greedy_v1 = pd.read_csv(os.path.join(results_dir, 'results_greedy_v1.csv'), sep=';')
+df_greedy_v1_counter = pd.read_csv(os.path.join(results_dir, 'results_greedy_v1_counter.csv'), sep=';')
 df_greedy_v2 = pd.read_csv(os.path.join(results_dir, 'results_greedy_v2.csv'), sep=';')
 
 
@@ -113,6 +115,7 @@ def visualize_elapsed_individual(df, algorithm, window_size=3, log=False, out=No
             fig.savefig(file_path, dpi=300, bbox_inches='tight')
         plt.show()
 
+
 def test(n, out=None):
     k_values = [0.125, 0.25, 0.5, 0.75]
 
@@ -122,11 +125,12 @@ def test(n, out=None):
     x_values = np.array([i for i in range(n + 1)])
 
     for i, k in enumerate(k_values):
-        y_values = np.array([math.comb(n, int(k * n)) * (k**2) for n in x_values])
+        y_values = np.array([math.comb(n, int(k * n)) * (k ** 2) for n in x_values])
         y_values = np.log2(y_values)
-        sns.regplot(x=x_values, y=y_values, label=r'$\binom{n}{%0.3f n} \cdot (%0.3f n)^2$' % (k, k), color=colors[i], scatter=False)
+        sns.regplot(x=x_values, y=y_values, label=r'$\binom{n}{%0.3f n} \cdot (%0.3f n)^2$' % (k, k), color=colors[i],
+                    scatter=False)
 
-    y_138 = np.array([1.38**i for i in range(n + 1)])
+    y_138 = np.array([1.38 ** i for i in range(n + 1)])
     y_138 = np.log2(y_138)
     sns.regplot(x=x_values, y=y_138, label=r'$1.38^n$', color="black", scatter=False)
 
@@ -143,8 +147,50 @@ def test(n, out=None):
     plt.tight_layout()
     plt.show()
 
+
+def compare_with_formal_proof(df, algorithm, formal_lambda, k=0.5, out=None):
+    fig, ax = plt.subplots(figsize=(6, 5))
+
+    colors = ['#F1CE63', '#E15759', '#4E79A7', '#8CD17D', 'm', 'y', 'k']
+
+    n = df['nodes'].max()
+    x_values = np.array([i for i in range(1, n + 1)])
+
+    num_args = len(inspect.signature(formal_lambda).parameters)
+
+    ax.set_title(f'k = {k}')
+    for edge_percentage, color in zip(df['edge_percentage'].unique(), colors):
+        sub_df = df[(df['k'] == k) & (df['edge_percentage'] == edge_percentage)]
+        if num_args == 2:
+            y_values = np.array([formal_lambda(i, k) for i in x_values])
+            ax.plot(x_values, np.log2(y_values), label=f'Formal Proof Edge Percentage = {edge_percentage}',
+                    marker='x', color=color)
+        ax.plot(sub_df['nodes'], np.log2(sub_df['operations_count']), label=f'Edge Percentage = {edge_percentage}',
+                marker='o', color=color)
+
+    ax.set_xlabel('Number of Nodes')
+    ax.set_ylabel('Log2(Elapsed Time (s))')
+    ax.legend(loc='upper left')
+    ax.grid()
+
+    y_values = np.array([np.log2(formal_lambda(i)) for i in x_values])
+    ax.plot(x_values, y_values, label='Formal Proof', color='black')
+
+    plt.tight_layout()
+
+    if out:
+        os.makedirs(out, exist_ok=True)
+        filename = f'{algorithm}_cf'
+        file_path = os.path.join(out, f'{filename}.png')
+        fig.savefig(file_path, dpi=300, bbox_inches='tight')
+    plt.show()
+
+
 def main():
-    test(400, out='data')
+    # test(400, out='data')
+    compare_with_formal_proof(df_brute_force_counter, 'Brute Force', lambda n, k: math.comb(n, int(k * n)) * (k ** 2),
+                              k=0.5, out='data')
+    compare_with_formal_proof(df_greedy_v1_counter, 'Greedy V1', lambda n: n ** 2, k=0.5, out='data')
 
 
 if __name__ == "__main__":

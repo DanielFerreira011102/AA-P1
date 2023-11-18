@@ -14,31 +14,6 @@ logger = Logger(level=LogLevel.DEBUG)
 matplotlib.use('TkAgg')
 
 
-def generate_max_spread_points(N, x_range, y_range):
-    def euclidean_distance(point1, point2):
-        return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
-
-    points = [(random.randint(x_range[0], x_range[1]), random.randint(y_range[0], y_range[1]))]
-
-    while len(points) < N:
-        max_min_distance = -1
-        best_point = None
-
-        for _ in range(1000):
-            x = random.randint(x_range[0], x_range[1])
-            y = random.randint(y_range[0], y_range[1])
-            min_distance = min(euclidean_distance((x, y), p) for p in points)
-
-            if min_distance > max_min_distance and points not in points:
-                max_min_distance = min_distance
-                best_point = (x, y)
-
-        if best_point is not None:
-            points.append(best_point)
-
-    return points
-
-
 class Graph(nx.Graph):
     def __init__(self, num_vertices: int = None, edge_percentage: float = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -172,6 +147,31 @@ class GraphGenerator:
         return G
 
     @staticmethod
+    def generate_max_spread_points(N, x_range, y_range):
+        def euclidean_distance(point1, point2):
+            return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
+
+        points = [(random.randint(x_range[0], x_range[1]), random.randint(y_range[0], y_range[1]))]
+
+        while len(points) < N:
+            max_min_distance = -1
+            best_point = None
+
+            for _ in range(1000):
+                x = random.randint(x_range[0], x_range[1])
+                y = random.randint(y_range[0], y_range[1])
+                min_distance = min(euclidean_distance((x, y), p) for p in points)
+
+                if min_distance > max_min_distance and points not in points:
+                    max_min_distance = min_distance
+                    best_point = (x, y)
+
+            if best_point is not None:
+                points.append(best_point)
+
+        return points
+
+    @staticmethod
     def visualize_graphs(graphs: List[Graph], grid: bool = False):
         GraphGenerator.visualize_graph_grid(graphs) if grid else GraphGenerator.visualize_graph_all(graphs)
 
@@ -246,7 +246,7 @@ class GraphGenerator:
             coordinate_range_x, coordinate_range_y = coordinate_range
 
         if spread:
-            return generate_max_spread_points(num_vertices, coordinate_range_x, coordinate_range_y)
+            return GraphGenerator.generate_max_spread_points(num_vertices, coordinate_range_x, coordinate_range_y)
 
         coordinates_array = []
         while len(coordinates_array) < num_vertices:

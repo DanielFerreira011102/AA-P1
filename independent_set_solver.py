@@ -48,12 +48,13 @@ class Algorithm(MultipleValueEnum):
 
 
 class Solution:
-    def __init__(self, solution: set, result: bool, count: int, elapsed_time: float, graph: Graph, algorithm: Algorithm,
+    def __init__(self, solution: set, result: bool, operations_count: int, solutions_count: int, elapsed_time: float, graph: Graph, algorithm: Algorithm,
                  independent_k: int,
                  k: float):
         self.solution = solution
         self.elapsed_time = elapsed_time
-        self.count = count
+        self.operations_count = operations_count
+        self.solutions_count = solutions_count
         self.graph = graph
         self.algorithm = algorithm
         self.k = k
@@ -185,7 +186,7 @@ class IndependentSetSolver:
         if save:
             os.makedirs(directory, exist_ok=True)
             with open(f'{directory}/{filename}', 'w') as file:
-                file.write("name;nodes;edges;edge_percentage;algorithm;k;independent_k;result;solution;elapsed_time\n")
+                file.write("name;nodes;edges;edge_percentage;algorithm;k;independent_k;result;solution;elapsed_time;operations_count;solutions_count\n")
 
         # solutions = SolutionSet([
         #     self._solve_single(func, graph, algorithm, kn, visualize, save, directory, filename) for graph in graphs for
@@ -210,16 +211,18 @@ class IndependentSetSolver:
         elapsed_time = time.time() - start_time
         if isinstance(result, tuple):
             if len(result) == 2:
-                result, count, solution = result[0], None, result[1]
+                op_count, sol_count = None, None
+                result, solution = result[0], result[1]
             else:
-                result, count, solution = result
+                result, (op_count, sol_count), solution = result
 
         else:
-            result, count, solution = result, None, None
+            op_count, sol_count = None, None
+            solution = None
 
         logger.info(
             f"No independent set found" if result is None else f"Solution {result} found in {elapsed_time} seconds")
-        solution = Solution(solution, result, count, elapsed_time, graph, algorithm, independent_k, k)
+        solution = Solution(solution, result, op_count, sol_count, elapsed_time, graph, algorithm, independent_k, k)
 
         if visualize:
             logger.info(f"Visualizing solution for {solution}")
@@ -242,18 +245,21 @@ class IndependentSetSolver:
                        f"{solution.result};" +
                        f"{':'.join([str(item) for item in solution.solution]) if solution.solution and solution.result else -1};" +
                        f"{solution.elapsed_time};" +
-                       f"{solution.count if solution.count else -1}\n")
+                       f"{solution.operations_count if solution.operations_count is not None  else -1};" +
+                       f"{solution.solutions_count if solution.solutions_count is not None else -1}\n")
 
     def _solve_brute_force(self, graph: Graph, k: int):
+        operations_count = 0
+        solutions_count = 0
+
         if k == 0:
-            return True, 1, set()
+            return True, (operations_count, solutions_count), set()
         if graph.number_of_nodes() == 0:
-            return False, 1, None
+            return False, (operations_count, solutions_count), None
         if k > graph.number_of_nodes():
-            return False, 1, None
+            return False, (operations_count, solutions_count), None
 
         nodes = list(graph.nodes())
-        operations_count = 0
 
         for subset in combinations(nodes, k):
             operations_count += 1
@@ -262,13 +268,13 @@ class IndependentSetSolver:
                 operations_count += 1
                 if graph.has_edge(u, v):
                     is_independent_set = False
-                    operations_count += 1
+                    solutions_count += 1
                     break
 
             if is_independent_set:
-                return True, operations_count, set(subset)
+                return True, (operations_count, solutions_count), set(subset)
 
-        return False, operations_count, None
+        return False, (operations_count, solutions_count), None
 
     def _solve_clever(self, graph: Graph, k: int):
         if k == 0:
@@ -298,30 +304,31 @@ class IndependentSetSolver:
         return False, None
 
     def _solve_greedy_heuristics_v1(self, graph: Graph, k: int):
+        operations_count = 0
+        solutions_count = 0
+
         if k == 0:
-            return True, 1, set()
+            return True, (operations_count, solutions_count), set()
         if graph.number_of_nodes() == 0:
-            return False, 1, None
+            return False, (operations_count, solutions_count), None
         if k > graph.number_of_nodes():
-            return False, 1, None
+            return False, (operations_count, solutions_count), None
 
         mis = set()
-        operations_count = 0
 
         while graph.number_of_nodes() > 0:
-            operations_count += 1
+            solutions_count += 1
 
             if len(mis) == k:
-                return True, operations_count, mis
+                return True, (operations_count, solutions_count), mis
 
             node = min(graph.nodes(), key=lambda x: graph.degree(x))
-            operations_count += 1
+            operations_count += graph.number_of_nodes() * graph.degree(node)
             mis.add(node)
-            operations_count += graph.number_of_nodes()
 
             graph.remove_adjacency(node)
 
-        return False, operations_count, None
+        return False, (operations_count, solutions_count), None
 
     def _solve_greedy_heuristics_v2(self, graph: Graph, k: int):
         if k == 0:
@@ -348,7 +355,7 @@ def main():
     num_vertices = tuple(range(80, 401))
     edge_percentages = (0.125, 0.25, 0.5, 0.75)
 
-    graphs = GraphGenerator.load_graphs(files=glob.glob(f'graphs/graph_5*.gml'))
+    graphs = GraphGenerator.load_graphs('graphs')
 
     k = (0.125, 0.25, 0.5, 0.75)
     solver = IndependentSetSolver(k)
@@ -359,8 +366,8 @@ def main():
         osSleep = WindowsInhibitor()
         osSleep.inhibit()
 
-    solutions = solver.solve(graphs, Algorithm.GREEDY_V2, save=True, filename='results_greedu-3.csv')
-
+    solutions = solver.solve(graphs, Algorithm.GREEDY_V1, save=True, filename='results_greedy_v1_counter.csv')
+    # solutions = solver.solve(graphs, Algorithm.BRUTE_FORCE, save=True, filename='results_brute_force_counter.csv')
     if osSleep:
         osSleep.uninhibit()
 

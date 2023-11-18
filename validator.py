@@ -100,6 +100,30 @@ def correct_file(solutions_file):
             outfile.write(new_line)
 
 
+def correct_file_2(solutions_file):
+    with open(solutions_file, 'r') as infile, open(f'{solutions_file}_modified', 'w') as outfile:
+        for line in infile:
+            # Split the line into fields using a comma as the delimiter
+            fields = line.strip().split(',', maxsplit=11)
+
+            modified_fields = fields[:-3] + fields[-3].rsplit(',', maxsplit=1) + fields[-2:]
+
+            new_line = ';'.join(modified_fields) + '\n'
+
+            outfile.write(new_line)
+
+def fix_zero_values(solutions_file):
+    df = pd.read_csv(solutions_file, sep=';')
+
+    column1 = 'operations_count'
+    column2 = 'solutions_count'
+
+    df[column1] = df[column1].replace(-1, 0)
+    df[column2] = df[column2].replace(-1, 0)
+
+    df.to_csv(solutions_file + ".tmp", index=False, sep=';')
+
+
 def main():
     # invalid_solutions, total_lines, total_positive_lines = compare_solutions('out/results_clever.csv', 'out/results_greedy_v1.csv')
     # print(f"Number of positive lines = {total_positive_lines}")
@@ -108,9 +132,14 @@ def main():
     # print(f"Percentage of invalid solutions = {len(invalid_solutions) / total_lines * 100}%")
     # print(f"Invalid solutions = {invalid_solutions}")
 
-    invalid_solutions = validate_solutions('graphs', 'out/results_greedu-3.csv')
-    print(f"Number of invalid solutions = {len(invalid_solutions)}")
-    print(f"Invalid solutions = {invalid_solutions}")
+    # invalid_solutions = validate_solutions('graphs', 'out/results_greedu-3.csv')
+    # print(f"Number of invalid solutions = {len(invalid_solutions)}")
+    # print(f"Invalid solutions = {invalid_solutions}")
+
+    # fix_zero_values('out/results_greedy_v1_counter.csv')
+
+    # correct_file('out/results_greedy_v1_counter.csv.tmp')
+    pass
 
 
 if __name__ == '__main__':
