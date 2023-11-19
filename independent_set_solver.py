@@ -1,6 +1,5 @@
-import glob
 import os
-import time
+from time import perf_counter
 from itertools import combinations
 from typing import Tuple, Callable, Union, List
 import matplotlib.pyplot as plt
@@ -206,9 +205,9 @@ class IndependentSetSolver:
         logger.info(f"Solving {graph} for k={k}")
         independent_k = self._get_k_percentage_nodes(graph, k)
         logger.info(f"Number of independent vertices={independent_k} for k={k}")
-        start_time = time.time()
+        start_time = perf_counter()
         result = func(graph.copy(), independent_k)
-        elapsed_time = time.time() - start_time
+        elapsed_time = perf_counter() - start_time
         if isinstance(result, tuple):
             if len(result) == 2:
                 op_count, sol_count = None, None
