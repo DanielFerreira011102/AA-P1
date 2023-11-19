@@ -265,9 +265,9 @@ class IndependentSetSolver:
             is_independent_set = True
             for u, v in combinations(subset, 2):
                 operations_count += 1
+                solutions_count += 1
                 if graph.has_edge(u, v):
                     is_independent_set = False
-                    solutions_count += 1
                     break
 
             if is_independent_set:
