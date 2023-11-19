@@ -304,31 +304,31 @@ class IndependentSetSolver:
         return False, None
 
     def _solve_greedy_heuristics_v1(self, graph: Graph, k: int):
-        operations_count = 0
-        solutions_count = 0
+        # could have sorted the nodes by degree and then picked the first k nodes
+        # but that does not speed up the algorithm
+        # the algorithm is still O(n^2) because of the remove_adjacency function
+
 
         if k == 0:
-            return True, (operations_count, solutions_count), set()
+            return True, set()
         if graph.number_of_nodes() == 0:
-            return False, (operations_count, solutions_count), None
+            return False, None
         if k > graph.number_of_nodes():
-            return False, (operations_count, solutions_count), None
+            return False, None
 
         mis = set()
 
-        while graph.number_of_nodes() > 0:
-            solutions_count += 1
-
-            if len(mis) == k:
-                return True, (operations_count, solutions_count), mis
+        while graph.number_of_nodes() > 0 and len(mis) < k:
+            print(graph.number_of_nodes())
 
             node = min(graph.nodes(), key=lambda x: graph.degree(x))
-            operations_count += graph.number_of_nodes() * graph.degree(node)
             mis.add(node)
 
             graph.remove_adjacency(node)
 
-        return False, (operations_count, solutions_count), None
+        if len(mis) == k:
+            return True, mis
+        return False, None
 
     def _solve_greedy_heuristics_v2(self, graph: Graph, k: int):
         if k == 0:
@@ -338,12 +338,12 @@ class IndependentSetSolver:
         if k > graph.number_of_nodes():
             return False
         mis = set()
-        while graph.number_of_nodes() > 0:
-            if len(mis) == k:
-                return True, mis
+        while graph.number_of_nodes() > 0 and len(mis) < k:
             node = graph.pick_best_vertex()
             mis.add(node)
             graph.remove_adjacency(node)
+        if len(mis) == k:
+            return True, mis
         return False, None
 
     def _get_k_percentage_nodes(self, graph: Graph, k: float):
@@ -366,8 +366,9 @@ def main():
         osSleep = WindowsInhibitor()
         osSleep.inhibit()
 
-    solutions = solver.solve(graphs, Algorithm.GREEDY_V1, save=True, filename='results_greedy_v1_counter.csv')
-    # solutions = solver.solve(graphs, Algorithm.BRUTE_FORCE, save=True, filename='results_brute_force_counter.csv')
+    solutions = solver.solve(graphs, Algorithm.GREEDY_V1, save=True, filename='results_greedy_v1.csv')
+    solutions = solver.solve(graphs, Algorithm.GREEDY_V2, save=True, filename='results_greedy_v2.csv')
+
     if osSleep:
         osSleep.uninhibit()
 
